@@ -25,7 +25,7 @@
 
 
 - name: Install Ansible
-  pip: name=ansible  version=latest
+  pip: name=ansible  version=1.8.4
   sudo: yes
 
 
@@ -48,7 +48,7 @@
 
 
 - name: Copy rsa key from this host
-  copy: src=~/.ssh/managed_rsa  dest=~/.ssh/managed_rsa  mode=0400
+  copy: src=~/.ssh/id_rsa  dest=~/.ssh/id_rsa  mode=0400
 
 
 - name: Copy boto auth config 

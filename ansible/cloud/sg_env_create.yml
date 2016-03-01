@@ -14,12 +14,8 @@
       register: vpc_id
 
 
-    - name: Ensure "{{ env }}-pain" SG has required rules
-      local_action: ec2_group  name="{{ env }}-pain"  description="Load testing"  vpc_id={{ vpc_id.stdout }}  region={{ region }}
-
-
     - name: Ensure "{{ env }}-docker" SG has required rules
-      local_action: ec2_group  name="{{ env }}-coreapps"  description="coreapps cluster"  vpc_id={{ vpc_id.stdout }}  region={{ region }}
+      local_action: ec2_group  name="{{ env }}-docker"  description="docker cluster"  vpc_id={{ vpc_id.stdout }}  region={{ region }}
       args:
         rules:
           - proto: tcp

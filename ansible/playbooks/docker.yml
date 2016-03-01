@@ -1,0 +1,7 @@
+---
+- name: Install everything needed for Docker
+  hosts: role_docker
+  gather_facts: True
+  roles: 
+    - common
+    - docker

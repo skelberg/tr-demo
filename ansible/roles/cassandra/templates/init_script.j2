@@ -1,0 +1,93 @@
+# Apache Cassandra     This shell script takes care of starting and stopping Apache Cassandra
+#
+# chkconfig: - 85 20
+#
+### BEGIN INIT INFO
+# Provides: Apache Cassandra Start / Stop
+# Required-Start: $network $syslog
+# Required-Stop: $network $syslog
+# Default-Start:
+# Default-Stop:
+# Description: Apache Cassandra Script
+# Short-Description: start and stop Apache Cassandra
+### END INIT INFO
+#
+
+set -e
+user=ec2-user
+export CASSANDRA_HOME=/home/${user}/cassandra
+export CASSANDRA_BIN_DIR=${CASSANDRA_HOME}/bin
+export CASSANDRA_CONF_DIR=${CASSANDRA_HOME}/conf
+export CASSANDRA_INCLUDE=${CASSANDRA_BIN_DIR}/cassandra.in.sh
+export CASSANDRA_ARGS="$2"
+echo ${CASSANDRA_ARGS} > /tmp/cassandra_args
+
+startCassandra() {
+  pid=`pgrep -u ${user} -f CassandraDaemon || true`
+  if [[ ${pid}  =~ ^[0-9]+$ ]]
+  then
+    echo "CassandraDaemon is already running: ${pid}"
+  else
+    swapoff --all   # make sure swap is disabled http://www.datastax.com/documentation/cassandra/2.0/cassandra/install/installRecommendSettings.html
+    echo "Starting cassandra"
+    nodes=`cat /etc/hosts | grep '{{ ec2_tag_env }}-cassandra.*-0[123] '`
+    nodes_clean=`echo "${nodes}"  | awk '{ print $2 }'`
+    ips=`echo "${nodes}"  | awk '{ print $1 }'`
+    if [ "${nodes}" == "" ] || [ "${ips}" == "" ]; then
+        echo "ERROR: no cassandra nodes found"
+        exit 1
+    fi
+    seed_ips=`echo ${ips} | sed s/" "/","/g`
+    seed_nodes=`echo ${nodes_clean} | sed s/" "/","/g`
+    su - ${user} -c "sed -e s/%%%SEED_IPS%%%/${seed_ips}/g -e s/%%%SEED_HOSTNAMES%%%/${seed_nodes}/g  ${CASSANDRA_CONF_DIR}/cassandra.yaml_template  > ${CASSANDRA_CONF_DIR}/cassandra.yaml"
+    su - ${user} -c "${CASSANDRA_BIN_DIR}/cassandra ${CASSANDRA_ARGS}" > /dev/null 2>&1 &
+    # now check if the node was successful
+    ip_address=`hostname -i`
+    MAXTRIES=20
+    LOOPCOUNT=1
+    node_status=""
+    while [ "${node_status}" != "UN" ] ; do
+        sleep ${LOOPCOUNT};
+        echo "Checking node status. Attempt ${LOOPCOUNT}"
+        node_status=$( { ${CASSANDRA_BIN_DIR}/nodetool status  | grep " ${ip_address} " | awk '{ print $1 }'; } 2>/dev/null )
+        LOOPCOUNT=`expr ${LOOPCOUNT} + 1`
+        if [ "${LOOPCOUNT}" -ge "${MAXTRIES}" ] ; then
+            echo "Failed after ${LOOPCOUNT} attepmts. Node status: ${node_status}"
+            exit 1
+        fi
+    done
+    echo "OK"
+  fi
+}
+
+shutdownCassandra() {
+   pid=`pgrep -u ${user} -f CassandraDaemon`
+   if [[ ${pid}  =~ ^[0-9]+$ ]]
+   then
+       echo "Stopping cassandra.."
+       ${CASSANDRA_BIN_DIR}/nodetool -h localhost flush  ||  true
+       sleep 1
+       kill ${pid}
+       sleep 1
+       pgrep -u ${user} -f CassandraDaemon  && ( sleep 2; kill -9 ${pid} || echo ) > /dev/null 2>&1   # last 'echo' here is a dirty hack, to make sure kill -9 doesn't exit the script too early
+   fi 
+   echo "OK"
+}
+
+# See how we were called.
+case "$1" in
+    start)
+            startCassandra
+        ;;
+    stop)
+            shutdownCassandra
+        ;;
+    restart)
+        $0 stop
+        sleep 1
+        $0 start
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+esac

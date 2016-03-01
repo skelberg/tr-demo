@@ -4,18 +4,18 @@
   connection: local
   gather_facts: False
   vars:    # these are defaults, can be overriden in command line
-    env: ci    # Environent
-    role: coreapps  # server Role 
+    env: dev    # Environent
+    role: docker  # server Role 
     az: "a"  # Availability zone. 
     id: "01"     # id can be anything, it's there to make sure the whole name is unique
     Name: "{{ env }}-{{ role }}-{{ az }}-{{ id }}"  # Name in AWS console
-    itype: t2.small    # EC2 instance type   
-    img: ami-6e7bd919    # OS image id  (ami)    
+    itype: t2.micro    # EC2 instance type   
+    img: ami-e1398992    # OS image id  (ami)    
     region: eu-west-1   # Region
-    keypair: managed  # Keypair for ssh authentication
+    keypair: trainingCenter  # Keypair for ssh authentication
     wait: yes
     override_vpc_id: ""  # Only needed when creating NEW vpc
-    root_volume_size: 30  # in GB
+    root_volume_size: 8  # in GB
     attached_ebs_size: 0  # in GB. If less than 1, volume will not be created. 
     public_ip: yes  # whether to assing a pub IP
 
@@ -32,13 +32,13 @@
       register: node_check
 
 
-    - name: Get subnet id for {{ env }}-{{ az }}
+    - name: Get subnet id
       local_action: script scripts/give_me_subnet.sh {{ region }} {{ vpc_id.stdout }} {{ env }} {{ az }}
       register: subnet_id
       when: node_check.stdout_lines == [] 
 
 
-    - name: Provision {{ role }} instance 
+    - name: Provision instance 
       local_action:
         module: ec2
         key_name: "{{ keypair }}"
@@ -49,7 +49,7 @@
         wait_timeout: 600
         assign_public_ip: "{{ public_ip }}"
         vpc_subnet_id: "{{ subnet_id.stdout_lines[0] }}"
-        group: ['managed', 'Faxi', '{{ env }}-{{ role }}']
+        group: ['managed', '{{ env }}-{{ role }}']
         instance_tags:
           Name: "{{ Name }}"
           env: "{{ env }}"
