@@ -1,0 +1,4 @@
+---
+cassandra_url: "https://s3-eu-west-1.amazonaws.com/skelberg-tr-demo/apache-cassandra-2.0.14-bin.tar.gz"
+jna_url: "https://s3-eu-west-1.amazonaws.com/skelberg-tr-demo/jna-4.1.0.jar"
+cassandra_args: ""

@@ -1,0 +1,7 @@
+---
+- name: Install everything needed for Ansible server
+  hosts: role_ans
+  gather_facts: True
+  roles: 
+    - ans
+

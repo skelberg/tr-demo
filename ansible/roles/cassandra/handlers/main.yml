@@ -1,0 +1,11 @@
+---
+- name: sysctl
+  shell: sysctl -p || echo
+  sudo: yes
+
+
+- name: restart cassandra
+  service: name=cassandra  state=restarted  arguments="{{ cassandra_args }}"
+  sudo: yes
+
+

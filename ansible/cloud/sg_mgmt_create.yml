@@ -1,0 +1,51 @@
+---
+- name: Sort out security groups needed for cloud management
+  hosts: local
+  connection: local
+  gather_facts: False
+  vars:
+    region: eu-west-1
+    override_vpc_id: ""  # Only needed when creating NEW vpc
+
+
+  tasks:
+    - name: What is my VPC id?
+      script: ./scripts/what_is_my_vpc_id.sh  {{ override_vpc_id }}
+      register: vpc_id
+
+
+    - name: Whats my Public IP?
+      local_action: shell ec2-metadata -v | awk '{ print $2 }'
+      register: my_pub_ip
+
+
+
+    - name: Ensure mgmt-ans SG  exists
+      local_action:
+        module: ec2_group
+        name: "mgmt-ansible"
+        description: ansible node
+        vpc_id: "{{ vpc_id.stdout }}"
+        region: "{{ region }}"
+        rules:
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: 81.26.156.9/32
+
+
+    - name: Ensure managed SG has required rules
+      local_action: ec2_group  name="managed"  description="SG for any managed node"  vpc_id={{ vpc_id.stdout }}  region={{ region }}
+      args:
+        rules:
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            group_name: mgmt-ansible
+          - proto: tcp
+            from_port: 80
+            to_port: 80
+            group_name: mgmt-ansible
+        rules_egress:
+          - proto: all
+            cidr_ip: 0.0.0.0/0

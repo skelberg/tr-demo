@@ -1,0 +1,6 @@
+---
+- name: Install everything needed for App tier
+  hosts: role_cassandra
+  gather_facts: True
+  roles: 
+    - cassandra

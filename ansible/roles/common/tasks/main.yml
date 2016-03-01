@@ -1,0 +1,24 @@
+---
+- name: PS1 update according to environment
+  template: src=bashrc.j2  dest=/etc/bashrc  mode=0644
+  sudo: yes
+
+
+- name: Bigger bash history
+  copy: src=respect-history.sh  dest=/etc/profile.d/respect-history.sh  mode=0644
+  sudo: yes
+
+
+- name: Get all the hosts for the environment and their respective IPs
+  local_action: shell  cat /etc/hosts | grep ' {{ ec2_tag_env }}-'
+  register: env_hosts
+  tags:
+    - hosts
+
+
+- name: Update  /etc/hosts according to environment
+  template: src=hosts.j2  dest=/etc/hosts  mode=0644
+  sudo: yes
+  when: ec2_tag_role != "ans"
+  tags:
+    - hosts

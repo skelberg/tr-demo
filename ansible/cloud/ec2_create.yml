@@ -1,0 +1,84 @@
+---
+- name: EC2 create
+  hosts: local
+  connection: local
+  gather_facts: False
+  vars:    # these are defaults, can be overriden in command line
+    env: ci    # Environent
+    role: coreapps  # server Role 
+    az: "a"  # Availability zone. 
+    id: "01"     # id can be anything, it's there to make sure the whole name is unique
+    Name: "{{ env }}-{{ role }}-{{ az }}-{{ id }}"  # Name in AWS console
+    itype: t2.small    # EC2 instance type   
+    img: ami-6e7bd919    # OS image id  (ami)    
+    region: eu-west-1   # Region
+    keypair: managed  # Keypair for ssh authentication
+    wait: yes
+    override_vpc_id: ""  # Only needed when creating NEW vpc
+    root_volume_size: 30  # in GB
+    attached_ebs_size: 0  # in GB. If less than 1, volume will not be created. 
+    public_ip: yes  # whether to assing a pub IP
+
+    
+   
+  tasks:
+    - name: What is my VPC id?
+      local_action: script scripts/what_is_my_vpc_id.sh {{ override_vpc_id }}
+      register: vpc_id
+
+
+    - name: Check if  instance already exists
+      local_action: script scripts/instance_id.sh {{ region }} {{ vpc_id.stdout }}  {{ Name }}
+      register: node_check
+
+
+    - name: Get subnet id for {{ env }}-{{ az }}
+      local_action: script scripts/give_me_subnet.sh {{ region }} {{ vpc_id.stdout }} {{ env }} {{ az }}
+      register: subnet_id
+      when: node_check.stdout_lines == [] 
+
+
+    - name: Provision {{ role }} instance 
+      local_action:
+        module: ec2
+        key_name: "{{ keypair }}"
+        instance_type: "{{ itype }}"
+        image: "{{ img }}"
+        region: "{{ region }}"
+        wait: "{{ wait }}"
+        wait_timeout: 600
+        assign_public_ip: "{{ public_ip }}"
+        vpc_subnet_id: "{{ subnet_id.stdout_lines[0] }}"
+        group: ['managed', 'Faxi', '{{ env }}-{{ role }}']
+        instance_tags:
+          Name: "{{ Name }}"
+          env: "{{ env }}"
+          role: "{{ role }}"
+        volumes: 
+        - device_name: /dev/xvda
+          volume_size: "{{ root_volume_size }}" 
+          device_type: gp2
+        - device_name: /dev/xvdf
+          volume_size: "{{ attached_ebs_size }}"
+          device_type: gp2
+        - device_name: /dev/xvdb
+          device_type: gp2
+          ephemeral: ephemeral0
+        - device_name: /dev/xvdc
+          device_type: gp2
+          ephemeral: ephemeral1
+        - device_name: /dev/xvdd
+          device_type: gp2
+          ephemeral: ephemeral2
+        - device_name: /dev/xvde
+          device_type: gp2
+          ephemeral: ephemeral3
+      when: node_check.stdout_lines == []  
+      register: ec2_instance 
+
+
+    - debug: msg="{{ ec2_instance }}"  
+
+
+    - name: Update known hosts
+      local_action: shell  ssh-keygen -R {{ Name }}

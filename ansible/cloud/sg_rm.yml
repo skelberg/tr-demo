@@ -1,0 +1,17 @@
+---
+- name: Remove Security Group
+  hosts: local
+  connection: local
+  gather_facts: False
+  vars:
+    region: eu-west-1
+    vpc_name: default
+    name: sg_name_must_be_provided 
+
+  tasks:
+    - name: What is my VPC id?
+      script: ./scripts/what_is_my_vpc_id.sh
+      register: vpc_id
+
+    - name: Ensure SG "{{ name }}" is removed
+      local_action: ec2_group  state=absent  name="{{ name }}"  region="{{ region }}"  vpc_id="{{ vpc_id.stdout }}"  description="what?"

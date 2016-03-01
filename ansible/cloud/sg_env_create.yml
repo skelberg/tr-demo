@@ -1,0 +1,46 @@
+---
+- name: Sort out security groups needed for cloud management
+  hosts: local
+  connection: local
+  gather_facts: False
+  vars:
+    region: eu-west-1
+    override_vpc_id: ""  # Only needed when creating NEW vpc
+
+
+  tasks:
+    - name: What is my VPC id?
+      script: ./scripts/what_is_my_vpc_id.sh  {{ override_vpc_id }}
+      register: vpc_id
+
+
+    - name: Ensure "{{ env }}-pain" SG has required rules
+      local_action: ec2_group  name="{{ env }}-pain"  description="Load testing"  vpc_id={{ vpc_id.stdout }}  region={{ region }}
+
+
+    - name: Ensure "{{ env }}-docker" SG has required rules
+      local_action: ec2_group  name="{{ env }}-coreapps"  description="coreapps cluster"  vpc_id={{ vpc_id.stdout }}  region={{ region }}
+      args:
+        rules:
+          - proto: tcp
+            from_port: 80
+            to_port: 80
+            group_name: mgmt-ansible
+
+
+    - name: Ensure "{{ env }}-cassandra" SG has required rules
+      local_action: ec2_group  name="{{ env }}-cassandra"  description="cassandra cluster"  vpc_id={{ vpc_id.stdout }}  region={{ region }}
+      args:
+        rules:
+          - proto: tcp     # Port 7000 is for internal cluster communication
+            from_port: 7000
+            to_port: 7000
+            group_name: "{{ env }}-cassandra"
+          - proto: tcp   # Port 9042 is CQL
+            from_port: 9042
+            to_port: 9042
+            group_name: "{{ env }}-docker"
+          - proto: tcp  # Port 9160 Is thrift
+            from_port: 9160
+            to_port: 9160
+            group_name: "{{ env }}-docker"

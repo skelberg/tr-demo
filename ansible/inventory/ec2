@@ -1,0 +1,12 @@
+#!/bin/bash
+
+script_dir=$(dirname "$(readlink -f $0)")
+args="$@"
+out=`${script_dir}/ec2.py ${args}`
+
+if [ "${args}" == "--list" ] || [ "${args}" == "" ]; 
+then
+    echo "${out}" | sed s/'"tag_Name_'/'"'/g | sed s/'"tag_'/'"'/g 
+else
+    echo "${out}" 
+fi    

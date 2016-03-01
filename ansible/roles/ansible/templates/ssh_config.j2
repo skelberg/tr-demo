@@ -1,0 +1,8 @@
+{{ ansible_managed }}
+
+Host *
+  IdentityFile ~/.ssh/managed_rsa
+  StrictHostKeyChecking no
+
+Host 172.31.*
+  ForwardAgent yes

@@ -1,0 +1,32 @@
+---
+- name: EC2 remove
+  hosts: local
+  connection: local
+  gather_facts: False
+  vars:    # these are defaults, can be overriden in command line
+    name: dev     # Name pattern to remoce instance
+    region: eu-west-1
+  tasks:
+    - name: What is my VPC id?
+      script: ./scripts/what_is_my_vpc_id.sh
+      register: vpc_id
+
+
+    - name: Get the list of instance ids to terminate
+      local_action: script ./scripts/instance_id.sh {{ region }} {{ vpc_id.stdout }}  {{ name }} 
+      register: ids
+
+    - debug: msg="Following instance(s) will be termintated {{ ids.stdout_lines }}"
+      when:  ids.stdout_lines != []
+
+
+    - name: Terminate instance    {{ name }}
+      local_action: 
+        module: ec2
+        region: "{{ region }}"
+        state: "absent"
+        instance_ids: "{{ ids.stdout_lines }}"
+      when:  ids.stdout_lines != []
+
+
+
