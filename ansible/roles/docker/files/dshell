@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [ "$1" == "" ]; then
+    echo "Usage:  `basename $0`  <container_name> "
+    exit 1
+fi
+
+export name="$1"
+sudo nsenter --target `docker inspect --format '{{.State.Pid}}'  ${name}`  --mount --uts --ipc --net --pid
+
+

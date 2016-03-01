@@ -1,0 +1,15 @@
+- yum: name=docker state=installed
+  sudo: yes
+
+
+- service: name=docker  enabled=yes  state=started
+  sudo: yes
+
+
+- name: Make sure ec2-user is in docker group
+  shell: usermod -a -G docker ec2-user
+  sudo: yes
+
+- name: Docker shell script
+  copy: src=dshell  dest=/usr/local/bin/dshell  mode=0755
+  sudo: yes
